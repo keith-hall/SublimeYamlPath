@@ -1,0 +1,10 @@
+[
+    {
+        "caption": "YAML Path: Copy",
+        "command": "copy_yaml_path",
+    },
+    {
+        "caption": "YAML Path: Show parse error",
+        "command": "show_yaml_parse_error",
+    },
+]
