@@ -21,6 +21,7 @@ When a selection change event is fired by Sublime Text, YAMLPath checks to see i
 If it doesn't, it will use the ruamel.yaml Python package to parse it and get the locations of all the nodes. This is then cached until the "view" is closed or edited etc.
 Then, it recursively looks through the parse tree for the node which comes immediately before the selection position. It knows not to recurse the 1st child node if the selection is after the 2nd child node position for example.
 Based on that hierarchy/stack of breadcrumbs, it generates the "YAML path" and shows it in the status bar.
+When the view is edited, it debounces the events, so that it only reparses the YAML after 200 ms has elapsed since the last edit, to keep the UI smooth.
 
 ## Testing
 

@@ -6,6 +6,7 @@ from ruamel.yaml import YAMLError
 
 
 VIEW_ID_YAML_MAP = {}
+VIEW_ID_MODIFIED_DEBOUNCE_MAP = {}
 
 
 class StatusBarYamlPath(sublime_plugin.EventListener):
@@ -18,15 +19,34 @@ class StatusBarYamlPath(sublime_plugin.EventListener):
         else:
             view.erase_status(self.STATUS_BAR_KEY)
 
-    on_selection_modified_async = update_path
+    def on_selection_modified_async(self, view: sublime.View) -> None:
+        self.update_path(view)
 
     def on_close_async(self, view: sublime.View) -> None:
-        if view.id() in VIEW_ID_YAML_MAP:
+        try:
             del VIEW_ID_YAML_MAP[view.id()]
+            del VIEW_ID_MODIFIED_DEBOUNCE_MAP[view.id()]
+        except KeyError:
+            pass
 
     def on_modified_async(self, view: sublime.View) -> None:
-        if view.id() in VIEW_ID_YAML_MAP:
-            del VIEW_ID_YAML_MAP[view.id()]
+        if view.id() not in VIEW_ID_YAML_MAP:
+            return
+        def debounce() -> None:
+            VIEW_ID_MODIFIED_DEBOUNCE_MAP[view.id()] = VIEW_ID_MODIFIED_DEBOUNCE_MAP.get(view.id(), 0) + 1
+            sublime.set_timeout_async(debounce_timer_fired, 200)
+        def debounce_timer_fired() -> None:
+            debounce_value = max(0, VIEW_ID_MODIFIED_DEBOUNCE_MAP.get(view.id(), 1) - 1)
+            VIEW_ID_MODIFIED_DEBOUNCE_MAP[view.id()] = debounce_value
+            if debounce_value > 0:
+                return
+
+            try:
+                del VIEW_ID_YAML_MAP[view.id()]
+            except KeyError:
+                pass
+            self.on_selection_modified_async(view)
+        debounce()
 
 
 def get_yaml_regions_containing_selections(view: sublime.View) -> Iterable[sublime.Region]:
@@ -53,6 +73,9 @@ def get_yaml_regions_containing_selections(view: sublime.View) -> Iterable[subli
 
 def get_yaml_paths_for_view_selections(view: sublime.View) -> Iterable[str]:
     for yaml_region, sel_region in get_yaml_regions_containing_selections(view):
+        # TODO: think of a better way to handle it than a region hash
+        #       - region hash changes every character typed...
+        #       - but it's i.e. still the 2nd yaml region in a Markdown file... use indexing instead? or cache from the begin only and not the end
         region_hash = get_region_hash(view, yaml_region)
         if region_hash not in VIEW_ID_YAML_MAP[view.id()]:
             text = view.substr(yaml_region)
@@ -82,6 +105,9 @@ def get_region_hash(view: sublime.View, yaml_region: sublime.Region) -> tuple:
     if view.id() not in VIEW_ID_YAML_MAP:
         VIEW_ID_YAML_MAP[view.id()] = {}
     
+    if yaml_region == sublime.Region(0, view.size()):
+        return (-1, -1) # entire file. Otherwise size changes on each character typed which ruins the region cache
+
     return (yaml_region.a, yaml_region.b)
 
 
