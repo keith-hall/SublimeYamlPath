@@ -91,8 +91,8 @@ def get_yaml_paths_for_view_selections(view: sublime.View) -> Iterable[str]:
         end_rowcol = view.rowcol(end)
         yaml_docs, offset_line = VIEW_ID_YAML_MAP[view.id()][region_hash]
         if isinstance(yaml_docs, YAMLError):
-            # TODO: see if can surface location of error
-            yield '-- YAML PARSE ERROR --'
+            mark = yaml_docs.problem_mark
+            yield f'-- YAML PARSE ERROR -- line {mark.line}: {yaml_docs.problem}'
             continue
         else:
             path = yaml_path_to(yaml_docs, end_rowcol[0] - offset_line, end_rowcol[1])
@@ -126,9 +126,14 @@ class ShowYamlParseErrorCommand(sublime_plugin.TextCommand):
     def run(self, edit):
         err, _, sel_region = get_parse_error(self.view)
         if err:
+            mark = err.problem_mark
+            pos = self.view.text_point(mark.line, mark.column)
+            self.view.sel().clear()
+            self.view.sel().add(pos)
+            self.view.show(pos)
             self.view.show_popup(
-                '<pre>' + sublime.html.escape(repr(err)) + '</pre>',
-                sel_region.b
+                '<pre>' + sublime.html.escape(str(err)) + '</pre>',
+                pos #sel_region.b
             )
 
     def is_enabled(self) -> bool:

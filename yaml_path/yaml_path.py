@@ -2,6 +2,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scanner import ScannerError
 from ruamel.yaml.parser import ParserError
+from ruamel.yaml.constructor import DuplicateKeyError
 from typing import Iterable, Optional, Union
 import re
 
@@ -9,12 +10,10 @@ import re
 UNQUOTED_KEY_REGEX = re.compile(r"^[a-zA-Z0-9_][a-zA-Z0-9_]*$")
 
 
-def parse_yaml_docs(text: str) -> Union[Iterable[Union[CommentedMap, CommentedSeq]], ScannerError, ParserError]:
+def parse_yaml_docs(text: str) -> Union[Iterable[Union[CommentedMap, CommentedSeq]], ScannerError, ParserError, DuplicateKeyError]:
     try:
         yaml_docs = list(YAML().load_all(text))
-    except ScannerError as e:
-        return e
-    except ParserError as e:
+    except (ScannerError, ParserError, DuplicateKeyError) as e:
         return e
 
     return yaml_docs
