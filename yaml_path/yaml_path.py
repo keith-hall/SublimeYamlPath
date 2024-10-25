@@ -75,6 +75,8 @@ def recursive_search_offset_seq(yaml: CommentedSeq, offset_line: int, offset_col
     closest_index = None
     for index in range(0, len(yaml)):
         subitem_pos = get_position_of_subitem(yaml, index)
+        if not subitem_pos:
+            continue
         if subitem_pos[0] <= offset_line:
             closest_index = index
         elif subitem_pos[0] > offset_line:
