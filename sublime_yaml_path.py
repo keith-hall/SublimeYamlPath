@@ -66,7 +66,8 @@ def get_yaml_regions_containing_selections(view: sublime.View) -> Iterable[subli
         for yaml_region in view.find_by_selector('source.yaml, source.json'):
             if yaml_region.begin() < start and yaml_region.end() > start:
                 break
-
+        else:
+            continue
         if yaml_region:
             yield (yaml_region, sel_region)
 
