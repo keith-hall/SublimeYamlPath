@@ -7,4 +7,8 @@
         "caption": "YAML Path: Show parse error",
         "command": "show_yaml_parse_error",
     },
+    {
+        "caption": "JSON: Convert to readable YAML",
+        "command": "convert_json_to_yaml"
+    },
 ]

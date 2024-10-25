@@ -33,3 +33,9 @@ pip3 install poetry
 poetry install --no-root
 poetry run python3 -m yaml_path.tests.test_yaml_path
 ```
+
+## Other Features
+
+Not strictly related to paths, there is a command implemented (without bloating the core functionality/performance or anything) for converting JSON into human readable YAML.
+This was specifically made for converting structured logs with unreadable stack traces etc. into something easily understandable by a human.
+Currently it is a one-way conversion, but it would be possible to also implement a YAML -> JSON converter and support "round-tripping" by adding some YAML tags to the output when it is converted from JSON. (Currently it detects when a field contains a JSON value and parses that also.) When this gets implemented, some unit tests covering this will also be added.
