@@ -1,12 +1,66 @@
 import sublime
 import sublime_plugin
+import time
+from functools import partial, wraps
 from typing import Iterable, Optional, Union
 from .yaml_path.yaml_path import parse_yaml_docs, yaml_path_to
 from ruamel.yaml import YAMLError
 
 
 VIEW_ID_YAML_MAP = {}
-VIEW_ID_MODIFIED_DEBOUNCE_MAP = {}
+
+
+def debounced(delay_in_ms, sync=False):
+    """Delay calls to event hooks until they weren't triggered for n ms.
+
+    Performs view-specific tracking and is best suited for the
+    `on_modified` and `on_selection_modified` methods
+    and their `_async` variants.
+    The `view` is taken from the first argument for `EventListener`s
+    and from the instance for `ViewEventListener`s.
+
+    Calls are only made when the `view` is still "valid" according to ST's API,
+    so it's not necessary to check it in the wrapped function.
+    """
+
+    # We assume that locking is not necessary because each function will be called
+    # from either the ui or the async thread only.
+    set_timeout = sublime.set_timeout if sync else sublime.set_timeout_async
+
+    def decorator(func):
+        to_call_times = {}
+
+        def _debounced_callback(view, callback):
+            vid = view.id()
+            threshold = to_call_times.get(vid)
+            if not threshold:
+                return
+            if not view.is_valid():
+                del to_call_times[vid]
+                return
+            diff = threshold - time.time() * 1000
+            if diff > 0:
+                set_timeout(partial(_debounced_callback, view, callback), diff)
+            else:
+                del to_call_times[vid]
+                callback()
+
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            view = self.view if hasattr(self, 'view') else args[0]
+            if not view.is_valid():
+                return
+            vid = view.id()
+            busy = vid in to_call_times
+            to_call_times[vid] = time.time() * 1000 + delay_in_ms
+            if busy:
+                return
+            callback = partial(func, self, *args, **kwargs)
+            set_timeout(partial(_debounced_callback, view, callback), delay_in_ms)
+
+        return wrapper
+
+    return decorator
 
 
 class StatusBarYamlPath(sublime_plugin.EventListener):
@@ -19,34 +73,23 @@ class StatusBarYamlPath(sublime_plugin.EventListener):
         else:
             view.erase_status(self.STATUS_BAR_KEY)
 
+    @debounced(200)
     def on_selection_modified_async(self, view: sublime.View) -> None:
         self.update_path(view)
 
     def on_close_async(self, view: sublime.View) -> None:
         try:
             del VIEW_ID_YAML_MAP[view.id()]
-            del VIEW_ID_MODIFIED_DEBOUNCE_MAP[view.id()]
         except KeyError:
             pass
+        view.erase_status(self.STATUS_BAR_KEY)
 
+    @debounced(700)
     def on_modified_async(self, view: sublime.View) -> None:
-        if view.id() not in VIEW_ID_YAML_MAP:
-            return
-        def debounce() -> None:
-            VIEW_ID_MODIFIED_DEBOUNCE_MAP[view.id()] = VIEW_ID_MODIFIED_DEBOUNCE_MAP.get(view.id(), 0) + 1
-            sublime.set_timeout_async(debounce_timer_fired, 200)
-        def debounce_timer_fired() -> None:
-            debounce_value = max(0, VIEW_ID_MODIFIED_DEBOUNCE_MAP.get(view.id(), 1) - 1)
-            VIEW_ID_MODIFIED_DEBOUNCE_MAP[view.id()] = debounce_value
-            if debounce_value > 0:
-                return
-
-            try:
-                del VIEW_ID_YAML_MAP[view.id()]
-            except KeyError:
-                pass
-            self.on_selection_modified_async(view)
-        debounce()
+        if view.id() in VIEW_ID_YAML_MAP:
+            # not closed
+            del VIEW_ID_YAML_MAP[view.id()]
+            self.update_path(view)
 
 
 def get_yaml_regions_containing_selections(view: sublime.View) -> Iterable[sublime.Region]:
