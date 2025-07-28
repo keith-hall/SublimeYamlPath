@@ -107,6 +107,7 @@ def recursive_search_offset_subitem(
         return new_stack
     elif line_number_of_item > offset_line:
         # already past the line we are interested in
+        return new_stack
         return None
     elif isinstance(yaml[subitem], CommentedMap):
         if result := recursive_search_offset_map(yaml[subitem], offset_line, offset_col, new_stack):
@@ -114,6 +115,8 @@ def recursive_search_offset_subitem(
     elif isinstance(yaml[subitem], CommentedSeq):
         if result := recursive_search_offset_seq(yaml[subitem], offset_line, offset_col, new_stack):
             return result
+
+    #return new_stack
     return None
 
 

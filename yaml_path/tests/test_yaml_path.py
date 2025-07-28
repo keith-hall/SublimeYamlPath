@@ -132,6 +132,60 @@ class TestYamlPath(unittest.TestCase):
         self.assertEqual(result, '[1].scope')
 
 
+class TestYamlPathMultilineString(unittest.TestCase):
+    YAML_CONTENT = dedent("""\
+        openapi: 3.0.3
+        info:
+          contact:
+            email: noreply@example.com
+            name: TestOpenAPISnippet
+          description: Test OpenAPI snippet with
+            multi-line strings so we can test the yaml path
+          termsOfService: https://www.example.com/api-terms
+          title: Example API
+          version: 1.0
+        servers:
+          - url: /v1
+        tags:
+          - description: |-
+              // Conditional snippet for beta or internal content
+              include::../../maturity-admonition-banner.adoc[]
+
+              Use the `/foo` endpoint to manage the example foos
+            name: Some Tag
+    """)
+
+    def test_yaml(self) -> None:
+        doc = parse_yaml_docs(self.YAML_CONTENT)
+
+        result = yaml_path_to(doc, 0, 0)
+        self.assertEqual(result, 'openapi')
+
+        # info description line with key
+        result = yaml_path_to(doc, 6, 20)
+        self.assertEqual(result, 'info.description')
+
+        # info description line after key
+        result = yaml_path_to(doc, 7, 20)
+        self.assertEqual(result, 'info.description')
+
+        # tag description line with key
+        result = yaml_path_to(doc, 15, 17)
+        self.assertEqual(result, 'tags[0].description')
+
+        # tag description 1 line below key
+        result = yaml_path_to(doc, 16, 17)
+        self.assertEqual(result, 'tags[0].description')
+
+        # tag description 2 lines below key
+        result = yaml_path_to(doc, 17, 17)
+        self.assertEqual(result, 'tags[0].description')
+
+        # after all the mappings in the document
+        result = yaml_path_to(doc, 21, 1)
+        self.assertEqual(result, '')
+
+
 if __name__ == '__main__':
     unittest.main()
 
@@ -141,4 +195,3 @@ def run_tests():
     runner = unittest.TextTestRunner()
     runner.run(suite)
 
-# python3 -m yaml_path.test_yaml_path
