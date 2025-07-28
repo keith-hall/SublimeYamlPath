@@ -15,4 +15,8 @@
         "caption": "YAML: Convert to JSON",
         "command": "convert_yaml_to_json"
     },
+    {
+        "caption": "Convert to JSON string",
+        "command": "to_json_string",
+    },
 ]
