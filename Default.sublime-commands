@@ -11,4 +11,8 @@
         "caption": "JSON: Convert to readable YAML",
         "command": "convert_json_to_yaml"
     },
+    {
+        "caption": "YAML: Convert to JSON",
+        "command": "convert_yaml_to_json"
+    },
 ]
